@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,12 +26,14 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import io.minio.GetObjectArgs;
+import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.ListObjectsArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.Result;
 import io.minio.errors.ErrorResponseException;
+import io.minio.http.Method;
 import io.minio.messages.Item;
 
 @RestController
@@ -109,6 +112,34 @@ public class FileController {
         return "File: " + fileName + " deleted";
     }
 
+    @PostMapping(value = "/presignedurl/get")
+    public ResponseEntity<String> createPresignedUrlGet(@RequestParam(value = "fileName", required = true) String fileName) throws Exception {
+        String url = minioClient.getPresignedObjectUrl(
+            GetPresignedObjectUrlArgs.builder()
+                .method(Method.GET)
+                .bucket(bucketName)
+                .object(fileName)
+                .expiry(10, TimeUnit.MINUTES)
+                .build());
+
+        return new ResponseEntity<>(url, HttpStatus.OK);
+    }
+
+    @PostMapping(value = "/presignedurl/put")
+    public ResponseEntity<String> createPresignedUrlPut(@RequestParam(value = "fileName", required = true) String fileName) throws Exception {
+        Map<String, String> reqParams = new HashMap<String, String>();
+        reqParams.put("response-content-type", "application/txt");
+        String url = minioClient.getPresignedObjectUrl(
+            GetPresignedObjectUrlArgs.builder()
+                .method(Method.PUT)
+                .bucket(bucketName)
+                .object(fileName)
+                .expiry(2, TimeUnit.HOURS)
+                .extraQueryParams(reqParams)
+                .build());
+
+        return new ResponseEntity<>(url, HttpStatus.OK);
+    }
 
     @GetMapping(value = "/memory")
     public String memory() {
